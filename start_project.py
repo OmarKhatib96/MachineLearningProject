@@ -33,15 +33,8 @@ def turn_mat_positive(M):
 
 
 def s_computing(U,Y,V):#OK
-    '''
-    However, the above update rule may not satisfy that a singular
-    value must be non-negative. This condition can easily be
-    satisfied by multiplying either U or V with sgn(S) and taking
-    the absolute values of S as a new S.
-
-    '''
+   
     U_t=U.transpose()
-    
     interm=np.matmul(U_t,Y)
     S=np.matmul(interm,V)
     return S
@@ -49,8 +42,8 @@ def s_computing(U,Y,V):#OK
 
 
 def orthogolize(mat):#We need to check this
-
-   mat_orth= sp.linalg.orth(mat)
+   from scipy import linalg
+   mat_orth= linalg.orth(mat)
    return mat_orth
 
 
@@ -63,35 +56,39 @@ import random
 
 def initialize(m,n):
     my_min=min(m,n)#il faut qu'il soit inférieur au min
-    U=np.zeros((m,my_min))#init
-    V=np.zeros((n,my_min))
     U=np.random.rand(m, my_min)#filling with random values
     V=np.random.rand(n, my_min)
-    Y=np.random.rand(m,n)
-
+    Y=np.zeros((m,n))#init 
+    #filling the diagonal
+    vec=np.random.rand(my_min)
+    for i in range(my_min):
+        Y[i,i]=vec[i]
     print("shape of U is",U.shape)
     print("shape of V is",V.shape)
-
-
     return U,Y,V
 
-result=initialize(10,5)
 
 
 
 def update_U_V(U,V,Y,eta,S):
-    #U=U+eta*np.matmul((np.matmul(Y,V)+ np.matmul(np.matmul(np.matmul(U,V.transpose()),Y.transpose()),U),S))
-    #V=V+eta*np.matmul((np.matmul(Y.transpose(),U)+ np.matmul(np.matmul(np.matmul(V,U.transpose()),Y),V),S))
+    Y_V=(np.matmul(Y,V))
+    U_V_T=np.matmul(U,V.transpose())
+    Y_T_U=np.matmul(Y.transpose(),U)
+    V_U_T=np.matmul(V,U.transpose())
+
+    
+    U=U+eta*(Y_V+np.matmul(np.matmul(U_V_T,Y_T_U),S))
+    V=V+eta*(Y_T_U+np.matmul(np.matmul(V_U_T,Y_V),S))
     return U,V
 
 
 def update_Y(Y,lbda,U,S,X,V):
-    index_i=[i for i in range((X-Y).shape[0])]
-    index_j=[j for j in range((X-Y).shape[1])]
-    
+    #full set observed
     omega_set=set()
-    for i,j in zip(index_i,index_j):
-        omega_set.add((i,j))
+    for i in range((X-Y).shape[0]):
+        for j in range((X-Y).shape[1]):
+            omega_set.add((i,j))
+
     U_S=np.matmul(U,S)
     Y=Y+eta*(np.matmul(U_S,V.transpose())-Y+lbda*omega_matrix(X-Y,omega_set))
     return Y
@@ -122,40 +119,49 @@ def check_sum_sv(K,k,lbdas,tau):
 def SVD_algorithm(matrix,m,n,n_r):
     n=0#we set n =0 as it is said in the pseudoalgorithm
     iteration=0
-    lbda=0.01
+    lbda=1
     m=5
     n=3
-    U,Y,V=initialize(2,3)
+    U,Y,V=initialize(m,n)
     eta=0.05
     K=2
     k=1
-    tau=0.1
+    tau=0.5
+    print('Y=',Y)
+    U=orthogolize(U)
+    V=orthogolize(V)
     S=s_computing(U,Y,V)    
-
-    while iteration<100:
-        update_U_V(U,V,Y,eta,S)#OK
+    N=0
+    while iteration<2:
+        U,V=update_U_V(U,V,Y,eta,S)#OK
+        U=orthogolize(U)
+        V=orthogolize(V)#We need to check this
         S=s_computing(U,Y,V)#OK
         S=turn_mat_positive(S)#OK but need to check the algorithm
-        U,V=update_U_V(U,V,Y,eta,S)#we have to define Q_omega,lbda restricts  the amount of the distance between completed matrix Y and the originalmatrix , it's a penalization parameter
+        print("S=",S)
         Y=update_Y(Y,lbda,U,S,matrix,V)
         iteration=iteration+1
         #lambda should be determined based on the portion o the size of missing values
         #Update Y according to (9)
         lbdas=np.diag(Y)
-        if n%n_r==0 and  check_sum_sv(K,k,lbdas,tau)==False:#lbdas= the sum of singular values estimated so fa
+        if N%n_r==0 and  check_sum_sv(K,k,lbdas,tau)==False:#lbdas= the sum of singular values estimated so fa
             #Append a set of random column vectors to U and V
-            orthogolize(U)
-            orthogolize(V)#We need to check this
+            print("hh")
+            U=orthogolize(U)
+            V=orthogolize(V)#We need to check this
             S=s_computing(U,Y,V)#OK
             S=turn_mat_positive(S)#OK but need to check the algorithm
 
-        
-    return U,Y
-    
+    return U,Y,S,V
 
-input_matrix=np.array([[1,2,3],[4,5,6]])
-U,Y=SVD_algorithm(input_matrix,2,3,1)
+m=5
+n=3
+X=np.random.rand(m, n)
 
-print(U)
+U,Y,S,V=SVD_algorithm(X,2,3,1)
 
-print('y=',Y)
+print("U=",U)
+print("Y=",Y)
+print("V=",Y)
+print('S=',S)
+
