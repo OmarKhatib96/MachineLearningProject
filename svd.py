@@ -24,7 +24,9 @@ def svd_decomposition(A):
 
 
 
-A=np.array([[1,2,10],[4,5,20],[7,8,9]])
+A=(np.array([[1,2,10],[4,0,20]]))
 
 U,S,V=svd_decomposition(A)
+print("shape of U",V.shape)
+print(U)
 print("Produit matrice=",np.matmul(U,np.matmul(S,V.transpose())))
