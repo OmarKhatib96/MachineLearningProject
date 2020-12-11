@@ -1,6 +1,58 @@
 import numpy as np
 epsilon=0.0001
 
+
+
+
+# MNIST dataset downloaded from Kaggle : 
+#https://www.kaggle.com/c/digit-recognizer/data
+
+# Functions to read and show images.
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+   
+d0 = pd.read_csv('train_data.csv')
+print(d0.head(5)) # print first five rows of d0.
+# save the labels into a variable l.
+l = d0['label']
+# Drop the label feature and store the pixel data in d.
+d = d0.drop("label",axis=1)
+
+
+print(d.shape)
+print(l.shape)
+
+
+
+# display or plot a number.
+plt.figure(figsize=(7,7))
+idx = 500
+
+grid_data = d.iloc[idx].as_matrix().reshape(28,28)  # reshape from 1d to 2d pixel array
+plt.imshow(grid_data, interpolation = "none", cmap = "gray")
+plt.show()
+
+print(l[idx])
+
+
+
+# Pick first 15K data-points to work on for time-effeciency.
+#Excercise: Perform the same analysis on all of 42K data-points.
+
+labels = l.head(15000)
+data = d.head(15000)
+
+print("the shape of sample data = ", data.shape)
+
+
+
+
+
+
 def iteration(A,index,first_component):
     v_iteration=np.random.rand(A.shape[0],1)#filling with random values
     shape_A=A.shape
@@ -20,7 +72,6 @@ def iteration(A,index,first_component):
 
         u_i=[]
         for i in range(shape_A[1]):
-            #u_i.append(np.dot(A[:,i],v_iteration)*A[:,i])
             u_i.append(np.dot(A[:,i],v_iteration))
 
 
@@ -37,24 +88,28 @@ def iteration(A,index,first_component):
 
     return v_iteration
 
-def iterative_svd(A):
-    v1=np.random.rand(A.shape[0],1)#filling with random values
-    first_component=v1
-    v_i=[]
-    for index in range(A.shape[1]):
-        element= iteration(A,index,first_component)
-        if index==0:
-            first_component=element
-        
-        #print("element=",element)
-        v_i.append(element)
+def iterative_svd(X,nbr_components):
+    A=np.matmul(X.transpose(),X)
+    if nbr_components<=min(A.shape[0],A.shape[1]):
+        v1=np.random.rand(A.shape[0],1)#filling with random values
+        first_component=v1
+        v_i=[]
+        for index in range(nbr_components):
+            element= iteration(A,index,first_component)
+            if index==0:
+                first_component=element
+            
+            #print("element=",element)
+            v_i.append(element)
 
-    V=np.array(v_i)
-    return V
+        V=np.array(v_i)
+        return V
+    else:
+        print("the number of components should be equal or less  to min(dim_features,dim_samples)")
+        return []
         
 
 def scale_matrix(A):
-
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     scaler.fit(A)
@@ -63,15 +118,60 @@ def scale_matrix(A):
 
 
 
-A=np.array([[1,0,105],[4,5,20]])
-#A=scale_matrix(np.matmul(A,A.transpose()))
-V=iterative_svd(np.matmul(A.transpose(),A))
+
+# projecting the original data sample on the plane 
+#formed by two principal eigen vectors by vector-vector multiplication.
+
+import matplotlib.pyplot as plt
+
+def project_data_on_components(principal_components):
+    new_coordinates = np.matmul(principal_components, sample_data.T)
+    return new_coordinates
 
 
-print(V)
+def data_visualize(coordinates):
 
-#comparaison avec sklearn     
+    import pandas as pd
+    import seaborn as sn
+
+    coordinates = np.vstack((coordinates, labels)).T#Add labels to the vector 
+    dataframe = pd.DataFrame(data=coordinates, columns=("1st_principal", "2nd_principal", "label"))
+    print(dataframe.head())
+    sn.FacetGrid(dataframe, hue="label", size=6).map(plt.scatter, '1st_principal', '2nd_principal').add_legend()
+    plt.show()
+
+
+
+
+
+
+
+def data_scaling(data):
+    from sklearn.preprocessing import StandardScaler
+    standardized_data = StandardScaler().fit_transform(data)
+    print("standardized data shape=",standardized_data.shape)
+    return standardized_data
+
+
+
+#I-Data scaling
+standardized_data=data_scaling(data)
+sample_data = standardized_data
+
+#II-Principal components computation
+components=iterative_svd(sample_data,2)
+print(components.shape)
+#III-projection of original data on the PC
+projection_coordinates=project_data_on_components(components)
+
+#IV-Data Visualization of projection
+data_visualize(projection_coordinates)
+
+
+#comparaison avec sklearn 
+'''    
 from sklearn.decomposition import PCA
 pca=PCA(2)
 pca.fit(A)
 print(pca.components_)
+'''
